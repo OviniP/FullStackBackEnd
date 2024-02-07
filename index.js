@@ -1,8 +1,12 @@
 const express = require('express')
+const morgan = require('morgan')
+
 const app = express()
-
 app.use(express.json())
-
+morgan.token('postData', (request, response) =>{
+    return Object.keys(request.body).length > 0 ? JSON.stringify(request.body) : undefined
+ })
+app.use(morgan(':method :url :status :res[content-length] - :response-time ms :postData'))
 
 let persons = [
     { 
@@ -26,6 +30,21 @@ let persons = [
       "number": "39-23-6423122"
     }
 ]
+
+
+const getRandomInt = (min, max) => {
+    const minCeiled = Math.ceil(min);
+    const maxFloored = Math.floor(max);
+    return Math.floor(Math.random() * (maxFloored - minCeiled) + minCeiled); // The maximum is exclusive and the minimum is inclusive
+}
+  
+const unknownEndpoint = (request, response) => {
+    return response.status(404).send(
+        {
+            error: 'Endpoint not found'
+        }
+    )
+}
 
 app.get('/', (request, response) => {
     response.send('Hello World!')
@@ -81,17 +100,12 @@ app.post('/api/persons', (request, response) =>
     const id = getRandomInt(1,10000)
     person.id = id
     persons = persons.concat(person)
+    response.status(200).json(person)
 })
 
+app.use(unknownEndpoint)
 
 const PORT = 3001
 app.listen(PORT,() => {
     console.log(`Server is running on port ${PORT}`)
 })
-
-function getRandomInt(min, max) {
-    const minCeiled = Math.ceil(min);
-    const maxFloored = Math.floor(max);
-    return Math.floor(Math.random() * (maxFloored - minCeiled) + minCeiled); // The maximum is exclusive and the minimum is inclusive
-  }
-  
