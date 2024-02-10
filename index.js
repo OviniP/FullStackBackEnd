@@ -5,6 +5,7 @@ const app = express()
 
 app.use(express.json())
 app.use(cors())
+app.use(express.static('dist'))
 
 morgan.token('postData', (request, response) =>{
     return Object.keys(request.body).length > 0 ? JSON.stringify(request.body) : undefined
