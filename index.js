@@ -1,8 +1,10 @@
+require('dotenv').config()
+
 const express = require('express')
 const morgan = require('morgan')
 const cors = require('cors')
+const Person = require('./models/person')
 const app = express()
-
 app.use(express.json())
 app.use(cors())
 app.use(express.static('dist'))
@@ -11,30 +13,6 @@ morgan.token('postData', (request, response) =>{
     return Object.keys(request.body).length > 0 ? JSON.stringify(request.body) : undefined
  })
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :postData'))
-
-let persons = [
-    { 
-      "id": 1,
-      "name": "Arto Hellas", 
-      "number": "040-123456"
-    },
-    { 
-      "id": 2,
-      "name": "Ada Lovelace", 
-      "number": "39-44-5323523"
-    },
-    { 
-      "id": 3,
-      "name": "Dan Abramov", 
-      "number": "12-43-234345"
-    },
-    { 
-      "id": 4,
-      "name": "Mary Poppendieck", 
-      "number": "39-23-6423122"
-    }
-]
-
 
 const getRandomInt = (min, max) => {
     const minCeiled = Math.ceil(min);
@@ -56,35 +34,49 @@ app.get('/', (request, response) => {
 
 app.get('/info', (request, response) => {
     const dateTime = new Date()
-    const count = persons ? persons.length : 0
-    response.send(`<P>Phonebook has info for ${count} people<p/> <p> ${dateTime}<p/>`)
+    Person.countDocuments({}).count().exec()
+        .then(count => {
+             response.send(`<P>Phonebook has info for ${count} people<p/> <p> ${dateTime}<p/>`)
+        })
 })
 
 app.get('/api/persons',(request, response) =>
 {
-    response.json(persons)
+    Person.find({}).then(people => {
+        response.json(people)
+    })
 })
 
 app.get('/api/persons/:id',(request, response) => {
     const id = Number(request.params.id)
-    const person = persons.find(p => p.id === id)
-    if(person){
-        response.json(person)
-    }
-    else{
-        response.status(404).end()
-    }
+    Person.findById(id).then(person => {
+        if(person){
+            response.json(person)
+        }
+        else{
+            response.status(404).end()
+        }
+    })
 })
 
 app.delete('/api/persons/:id', (request, response) =>{
-    const id = Number(request.params.id)
-    persons = persons.filter(person => person.id !== id)
-    response.status(204).end()
+    const id = request.params.id
+    Person.where({_id:id}).findOneAndDelete()
+    .then(out => {
+        response.status(204).end()
+    })
+    .catch(error => {
+        console.log(error.message)
+    })
 })
 
 app.post('/api/persons', (request, response) => 
 {
-    const person = request.body
+    const person = new Person({
+        name : request.body.name,
+        number : request.body.number
+    })
+
     if(!person.name){
         return response.status(400).json({
                  error:'Name can not be empty'
@@ -95,16 +87,26 @@ app.post('/api/persons', (request, response) =>
                 error:'Number can not be empty'
              })
     }
-    const exisitngName = persons.find(p => p.name === person.name)
+    /*Person.where({name:person.name}).findOne()
+        .then(existing => {
+            if(existing.id){
+                return response.status(400).json({
+                    error:'Name already exists'
+                })
+            }
+        })
     if(exisitngName){
         return response.status(400).json({
             error:'Name already exists'
         })
-    }
-    const id = getRandomInt(1,10000)
-    person.id = id
-    persons = persons.concat(person)
-    response.status(200).json(person)
+    }*/
+
+    person.save().then(savedPerson => {
+        response.status(200).json(savedPerson)
+    })
+    //const id = getRandomInt(1,10000)
+    //person.id = id
+    //persons = persons.concat(person)
 })
 
 app.use(unknownEndpoint)
