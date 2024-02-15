@@ -14,19 +14,7 @@ morgan.token('postData', (request, response) =>{
  })
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :postData'))
 
-const getRandomInt = (min, max) => {
-    const minCeiled = Math.ceil(min);
-    const maxFloored = Math.floor(max);
-    return Math.floor(Math.random() * (maxFloored - minCeiled) + minCeiled); // The maximum is exclusive and the minimum is inclusive
-}
-  
-const unknownEndpoint = (request, response) => {
-    return response.status(404).send(
-        {
-            error: 'Endpoint not found'
-        }
-    )
-}
+
 
 app.get('/', (request, response) => {
     response.send('Hello World!')
@@ -47,9 +35,10 @@ app.get('/api/persons',(request, response) =>
     })
 })
 
-app.get('/api/persons/:id',(request, response) => {
-    const id = Number(request.params.id)
-    Person.findById(id).then(person => {
+app.get('/api/persons/:id',(request, response, next) => {
+    const id = request.params.id
+    Person.findById(id)
+    .then(person => {
         if(person){
             response.json(person)
         }
@@ -57,16 +46,24 @@ app.get('/api/persons/:id',(request, response) => {
             response.status(404).end()
         }
     })
+    .catch(error =>{
+        next(error)
+    })
 })
 
-app.delete('/api/persons/:id', (request, response) =>{
+app.delete('/api/persons/:id', (request, response,next) =>{
     const id = request.params.id
-    Person.where({_id:id}).findOneAndDelete()
+    Person.findByIdAndDelete(id)
     .then(out => {
-        response.status(204).end()
+        if(out===null){
+            response.send(400).json({error:'id not found'})
+        }
+        else{
+            response.status(204).end()
+        }
     })
     .catch(error => {
-        console.log(error.message)
+        next(error)
     })
 })
 
@@ -87,29 +84,44 @@ app.post('/api/persons', (request, response) =>
                 error:'Number can not be empty'
              })
     }
-    /*Person.where({name:person.name}).findOne()
-        .then(existing => {
-            if(existing.id){
-                return response.status(400).json({
-                    error:'Name already exists'
-                })
-            }
-        })
-    if(exisitngName){
-        return response.status(400).json({
-            error:'Name already exists'
-        })
-    }*/
-
+    
     person.save().then(savedPerson => {
         response.status(200).json(savedPerson)
     })
-    //const id = getRandomInt(1,10000)
-    //person.id = id
-    //persons = persons.concat(person)
 })
 
+app.put('/api/persons/:id',(request, response,next) => {
+    const person = {
+        name: request.body.name,
+        number: request.body.number
+    }
+    Person.findByIdAndUpdate(request.params.id,person, {new:true})
+        .then(updated =>{
+            return response.json(updated)
+        })
+        .catch(error => {
+            next(error)
+        })
+}) 
+    
+const unknownEndpoint = (request, response) => {
+    return response.status(404).send(
+        {
+            error: 'Endpoint not found'
+        }
+    )
+    next()
+}
 app.use(unknownEndpoint)
+
+const errorHandler = (error, request, response, next) => {
+    console.error(error.message)
+    if(error.name === 'CastError'){
+        return response.status(400).json({error:'malformed Id'})
+    }
+    next(error)
+}
+app.use(errorHandler)
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {

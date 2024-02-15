@@ -1,1 +1,7 @@
 GET   http://localhost:3001/api/persons/
+
+###
+GET   http://localhost:3001/api/persons/65cd3f464b20b9bac80d1f58
+
+###
+GET   http://localhost:3001/api/persons/ovini 123
