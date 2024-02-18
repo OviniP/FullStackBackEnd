@@ -14,8 +14,6 @@ morgan.token('postData', (request, response) =>{
  })
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :postData'))
 
-
-
 app.get('/', (request, response) => {
     response.send('Hello World!')
 })
@@ -67,7 +65,7 @@ app.delete('/api/persons/:id', (request, response,next) =>{
     })
 })
 
-app.post('/api/persons', (request, response) => 
+app.post('/api/persons', (request, response,next) => 
 {
     const person = new Person({
         name : request.body.name,
@@ -87,7 +85,8 @@ app.post('/api/persons', (request, response) =>
     
     person.save().then(savedPerson => {
         response.status(200).json(savedPerson)
-    })
+    })   
+    .catch(error => next(error))
 })
 
 app.put('/api/persons/:id',(request, response,next) => {
@@ -95,7 +94,7 @@ app.put('/api/persons/:id',(request, response,next) => {
         name: request.body.name,
         number: request.body.number
     }
-    Person.findByIdAndUpdate(request.params.id,person, {new:true})
+    Person.findByIdAndUpdate(request.params.id,person, {new:true,runValidators:true})
         .then(updated =>{
             return response.json(updated)
         })
@@ -118,6 +117,9 @@ const errorHandler = (error, request, response, next) => {
     console.error(error.message)
     if(error.name === 'CastError'){
         return response.status(400).json({error:'malformed Id'})
+    }
+    if(error.name === 'ValidationError'){
+        return response.status(400).json({error:error.message})
     }
     next(error)
 }
